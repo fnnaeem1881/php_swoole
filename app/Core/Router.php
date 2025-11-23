@@ -6,6 +6,8 @@ use App\Core\Logger;
 class Router
 {
     protected $routes = [];
+    protected $currentGroupPrefix = '';
+    protected $currentGroupMiddleware = [];
 
     public function get($uri, $action, $middleware = [])
     {
@@ -17,14 +19,34 @@ class Router
         $this->addRoute('POST', $uri, $action, $middleware);
     }
 
-    protected function addRoute($method, $uri, $action, $middleware = [])
+     public function group($prefix, $callback, $middleware = [])
     {
+        $previousPrefix = $this->currentGroupPrefix;
+        $previousMiddleware = $this->currentGroupMiddleware;
+
+        $this->currentGroupPrefix = rtrim($previousPrefix . $prefix, '/');
+        $this->currentGroupMiddleware = array_merge($previousMiddleware ?? [], $middleware ?? []);
+
+        $callback($this);
+
+        $this->currentGroupPrefix = $previousPrefix;
+        $this->currentGroupMiddleware = $previousMiddleware;
+    }
+
+    protected function addRoute($method, $uri, $action, $middleware)
+    {
+        $uri = '/' . trim($uri, '/');
+
+        if (!empty($this->currentGroupPrefix)) {
+            $uri = $this->currentGroupPrefix . $uri;
+        }
+
+        $middleware = array_merge($this->currentGroupMiddleware ?? [], $middleware ?? []);
         $this->routes[$method][$uri] = [
             'action' => $action,
             'middleware' => $middleware
         ];
     }
-
     public function dispatch($uri, $request, $response)
     {
         $method = strtoupper($request->server['request_method'] ?? 'GET');
