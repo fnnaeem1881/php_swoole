@@ -1,6 +1,8 @@
 <?php
 namespace App\Core;
 
+use App\Core\Helpers;
+use App\Core\Logger;
 class Router
 {
     protected $routes = [];
@@ -29,8 +31,18 @@ class Router
         $route = $this->routes[$method][$uri] ?? null;
 
         if (!$route) {
+            Logger::error("Route Not Found: $uri", [
+                'method' => $method,
+                'uri' => $uri,
+                'status' => 404
+            ]);
+
             $response->status(404);
-            $response->end("404 Not Found");
+            if (Helpers::env('APP_DEBUG', 'false') === 'true') {
+                $response->end("404 Not Found: $uri");
+            } else {
+                $response->end("Not Found");
+            }
             return;
         }
 
@@ -41,7 +53,11 @@ class Router
             // middleware should return true to continue, false or array/string to stop
             $result = $m->handle($request, $response);
             if ($result === false) {
-                // middleware already ended response
+                Logger::error("Unauthorized Access Middleware", [
+                    'uri' => $uri,
+                    'method' => $method,
+                    'status' => $response->status ?? 401
+                ]);
                 return;
             }
             if (is_array($result)) {
@@ -60,22 +76,25 @@ class Router
 
         // call controller action
         [$controller, $action] = explode('@', $route['action']);
-        $controllerClass = "App\\Controllers\\{$controller}";
-        if (!class_exists($controllerClass)) {
-            $response->status(500);
-            $response->end("Controller {$controller} not found");
-            return;
-        }
-
-        $controller = new $controllerClass;
+        $controller = "App\\Controllers\\$controller";
+        $controller = new $controller;
 
         try {
-            // controller methods receive ($request, $response)
+            ob_start();
             $controller->$action($request, $response);
+            $output = ob_get_clean();
+            $response->status($response->status ?? 200);
+            $response->end($output);
         } catch (\Throwable $e) {
+            \App\Core\Logger::error($e->getMessage(), [
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
             $response->status(500);
-            if (Helpers::env('APP_DEBUG', 'false') === 'true') {
-                $response->end("Error: " . $e->getMessage() . "\n" . $e->getTraceAsString());
+            if (\App\Core\Helpers::env('APP_DEBUG', 'false') === 'true') {
+                $response->end("Server Error: " . $e->getMessage() . "\n" . $e->getTraceAsString());
             } else {
                 $response->end("Server Error");
             }
