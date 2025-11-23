@@ -1,0 +1,45 @@
+/vendor/
+composer.lock
+
+.env
+.env.local
+.env.production
+.env.testing
+
+# --- Swoole Temp / Cache / Logs ---
+/storage/logs/
+/storage/cache/
+/storage/framework/
+/storage/uploads/*
+
+!/storage/uploads/
+storage/uploads/*
+
+# --- PHP Storm / VSCode / IDE ---
+.idea/
+.vscode/
+*.iml
+
+# --- Node / frontend (if added later) ---
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# --- OS Files ---
+.DS_Store
+Thumbs.db
+
+# --- Backup / temp ---
+*.bak
+*.tmp
+*.swp
+*.swo
+
+# --- Logs ---
+*.log
+
+# --- Build / dist ---
+/dist/
+/build/
+/public/hot
+/public/storage
